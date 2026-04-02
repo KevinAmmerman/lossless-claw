@@ -6,6 +6,21 @@ export type LcmConversationScope = {
   allConversations: boolean;
 };
 
+const CURRENT_CONVERSATION_ONLY_SESSION_KEY_PREFIXES = [
+  "agent:hori-wa-public:",
+  "agent:hori-wa-public-group:",
+] as const;
+
+function isCurrentConversationOnlySessionKey(sessionKey?: string): boolean {
+  const normalizedSessionKey = sessionKey?.trim();
+  if (!normalizedSessionKey) {
+    return false;
+  }
+  return CURRENT_CONVERSATION_ONLY_SESSION_KEY_PREFIXES.some((prefix) =>
+    normalizedSessionKey.startsWith(prefix),
+  );
+}
+
 type ConversationScopeStore = ReturnType<LcmContextEngine["getConversationStore"]> & {
   getConversationForSession?: (input: {
     sessionId?: string;
@@ -84,16 +99,18 @@ export async function resolveLcmConversationScope(input: {
   deps?: Pick<LcmDependencies, "resolveSessionIdFromSessionKey">;
 }): Promise<LcmConversationScope> {
   const { lcm, params } = input;
+  const currentConversationOnly = isCurrentConversationOnlySessionKey(input.sessionKey);
 
+  // Local policy patch: public WhatsApp agents stay in their current LCM conversation only.
   const explicitConversationId =
     typeof params.conversationId === "number" && Number.isFinite(params.conversationId)
       ? Math.trunc(params.conversationId)
       : undefined;
-  if (explicitConversationId != null) {
+  if (!currentConversationOnly && explicitConversationId != null) {
     return { conversationId: explicitConversationId, allConversations: false };
   }
 
-  if (params.allConversations === true) {
+  if (!currentConversationOnly && params.allConversations === true) {
     return { conversationId: undefined, allConversations: true };
   }
 
