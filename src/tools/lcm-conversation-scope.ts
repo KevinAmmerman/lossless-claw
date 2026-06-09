@@ -9,6 +9,7 @@ export type LcmConversationScope = {
 const CURRENT_CONVERSATION_ONLY_SESSION_KEY_PREFIXES = [
   "agent:hori-wa-public:",
   "agent:hori-wa-public-group:",
+  "agent:hori-wa-public-group-kletter:",
 ] as const;
 
 function isCurrentConversationOnlySessionKey(sessionKey?: string): boolean {
@@ -19,6 +20,26 @@ function isCurrentConversationOnlySessionKey(sessionKey?: string): boolean {
   return CURRENT_CONVERSATION_ONLY_SESSION_KEY_PREFIXES.some((prefix) =>
     normalizedSessionKey.startsWith(prefix),
   );
+}
+
+export function deriveHeartbeatParentSessionKey(sessionKey?: string): string | undefined {
+  const normalizedSessionKey = sessionKey?.trim();
+  if (!normalizedSessionKey?.startsWith("agent:")) {
+    return undefined;
+  }
+  const parts = normalizedSessionKey.split(":");
+  if (parts.length < 6) {
+    return undefined;
+  }
+  const last = parts[parts.length - 1];
+  const previous = parts[parts.length - 2];
+  if (last !== "heartbeat") {
+    return undefined;
+  }
+  if (previous === "heartbeat" || /^heartbeat(?:-[A-Za-z0-9_.-]+|-v\d+)?$/.test(previous)) {
+    return parts.slice(0, -2).join(":");
+  }
+  return undefined;
 }
 
 type ConversationScopeStore = ReturnType<LcmContextEngine["getConversationStore"]> & {
@@ -119,6 +140,15 @@ export async function resolveLcmConversationScope(input: {
       await lcm.getConversationStore().getConversationBySessionKey(normalizedSessionKey);
     if (bySessionKey) {
       return { conversationId: bySessionKey.conversationId, allConversations: false };
+    }
+
+    const parentSessionKey = deriveHeartbeatParentSessionKey(normalizedSessionKey);
+    if (parentSessionKey) {
+      const byParentSessionKey =
+        await lcm.getConversationStore().getConversationBySessionKey(parentSessionKey);
+      if (byParentSessionKey) {
+        return { conversationId: byParentSessionKey.conversationId, allConversations: false };
+      }
     }
   }
 

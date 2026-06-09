@@ -85,6 +85,7 @@ function buildLcmEngine(params: {
   };
   conversationId?: number;
   conversationIdBySessionKey?: number;
+  conversationIdBySessionKeyMap?: Record<string, number>;
   timezone?: string;
 }) {
   return {
@@ -104,19 +105,21 @@ function buildLcmEngine(params: {
               updatedAt: new Date("2026-01-01T00:00:00.000Z"),
             },
       ),
-      getConversationBySessionKey: vi.fn(async () =>
-        params.conversationIdBySessionKey == null
+      getConversationBySessionKey: vi.fn(async (sessionKey: string) => {
+        const mappedConversationId = params.conversationIdBySessionKeyMap?.[sessionKey];
+        const conversationId = mappedConversationId ?? params.conversationIdBySessionKey;
+        return conversationId == null
           ? null
           : {
-              conversationId: params.conversationIdBySessionKey,
+              conversationId,
               sessionId: "legacy-session",
-              sessionKey: "agent:main:main",
+              sessionKey,
               title: null,
               bootstrappedAt: null,
               createdAt: new Date("2026-01-01T00:00:00.000Z"),
               updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-            },
-      ),
+            };
+      }),
     }),
   };
 }
@@ -288,6 +291,59 @@ describe("LCM tools session scoping", () => {
     expect(retrieval.grep).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: 42,
+      }),
+    );
+  });
+
+  it("lcm_grep maps isolated heartbeat session keys to their parent conversation", async () => {
+    const retrieval = {
+      grep: vi.fn(async () => ({
+        messages: [],
+        summaries: [],
+        totalMatches: 0,
+      })),
+      expand: vi.fn(),
+      describe: vi.fn(),
+    };
+    const getConversationBySessionKey = vi.fn(async (sessionKey: string) =>
+      sessionKey === "agent:hori-wa:telegram:direct:968721694"
+        ? {
+            conversationId: 3026,
+            sessionId: "parent-dm",
+            sessionKey,
+            title: null,
+            bootstrappedAt: null,
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          }
+        : null,
+    );
+    const lcm = {
+      ...buildLcmEngine({ retrieval }),
+      getConversationStore: () => ({
+        getConversationBySessionId: vi.fn(async () => null),
+        getConversationBySessionKey,
+      }),
+    };
+
+    const tool = createLcmGrepTool({
+      deps: makeDeps(),
+      lcm: lcm as never,
+      sessionKey: "agent:hori-wa:telegram:direct:968721694:heartbeat-v3:heartbeat",
+    });
+    await tool.execute("call-heartbeat-parent", { pattern: "Zimmer Bild" });
+
+    expect(getConversationBySessionKey).toHaveBeenNthCalledWith(
+      1,
+      "agent:hori-wa:telegram:direct:968721694:heartbeat-v3:heartbeat",
+    );
+    expect(getConversationBySessionKey).toHaveBeenNthCalledWith(
+      2,
+      "agent:hori-wa:telegram:direct:968721694",
+    );
+    expect(retrieval.grep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 3026,
       }),
     );
   });
