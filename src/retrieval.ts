@@ -481,13 +481,23 @@ export class RetrievalEngine {
     } else if (summary.kind === "leaf" && includeMessages) {
       // Leaf summary — fetch source messages
       const messageIds = await this.summaryStore.getSummaryMessages(summaryId);
+      const store = this.conversationStore as {
+        getMessagesByIds?: (ids: typeof messageIds) => Promise<Map<number, Awaited<ReturnType<typeof this.conversationStore.getMessageById>>>>;
+        getMessageById: typeof this.conversationStore.getMessageById;
+      };
+      const messagesById =
+        typeof store.getMessagesByIds === "function"
+          ? await store.getMessagesByIds(messageIds)
+          : null;
 
       for (const msgId of messageIds) {
         if (result.truncated) {
           break;
         }
 
-        const msg = await this.conversationStore.getMessageById(msgId);
+        const msg = messagesById
+          ? messagesById.get(msgId) ?? null
+          : await store.getMessageById(msgId);
         if (!msg) {
           continue;
         }

@@ -28,6 +28,12 @@ export const DEFAULT_AUTO_ROTATE_SESSION_FILE_SIZE_BYTES = 2 * 1024 * 1024;
 export const DEFAULT_SUMMARY_CALL_WINDOW_MS = 10 * 60 * 1000;
 export const DEFAULT_SUMMARY_MAX_CALLS_PER_WINDOW = 24;
 export const DEFAULT_SUMMARY_SPEND_BACKOFF_MS = 30 * 60 * 1000;
+/** LOCAL_PATCH defaults: public WhatsApp agent session-key prefixes. */
+export const DEFAULT_PUBLIC_AGENT_SESSION_PREFIXES: string[] = [
+  "agent:hori-wa-public:",
+  "agent:hori-wa-public-group:",
+  "agent:hori-wa-public-group-kletter:",
+];
 
 export type CacheAwareCompactionConfig = {
   enabled: boolean;
@@ -103,6 +109,11 @@ export type LcmConfig = {
   largeFilesDir: string;
   /** Glob patterns for session keys to exclude from LCM storage entirely. */
   ignoreSessionPatterns: string[];
+  /**
+   * Session-key prefixes forced to current-conversation-only LCM tool scope
+   * (LOCAL_PATCH privacy for public WhatsApp agents). Empty array disables.
+   */
+  publicAgentSessionPrefixes: string[];
   /** Glob patterns for session keys that may read from LCM but never write to it. */
   statelessSessionPatterns: string[];
   /** When true, stateless session pattern matching is enforced. */
@@ -704,6 +715,10 @@ export function resolveLcmConfigWithDiagnostics(
         ?? toStr(pc.largeFilesDir)
         ?? join(resolveOpenclawStateDir(env), "lcm-files"),
       ignoreSessionPatterns: ignoreSessionPatterns.patterns,
+      publicAgentSessionPrefixes:
+        parseEnvStrArray(env.LCM_PUBLIC_AGENT_SESSION_PREFIXES)
+        ?? toStrArray(pc.publicAgentSessionPrefixes)
+        ?? DEFAULT_PUBLIC_AGENT_SESSION_PREFIXES,
       statelessSessionPatterns: statelessSessionPatterns.patterns,
       skipStatelessSessions:
         env.LCM_SKIP_STATELESS_SESSIONS !== undefined

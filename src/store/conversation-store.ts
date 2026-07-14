@@ -1337,6 +1337,29 @@ export class ConversationStore {
     return row ? toMessageRecord(row) : null;
   }
 
+  async getMessagesByIds(messageIds: MessageId[]): Promise<Map<MessageId, MessageRecord>> {
+    const result = new Map<MessageId, MessageRecord>();
+    if (messageIds.length === 0) {
+      return result;
+    }
+    const uniqueIds = [...new Set(messageIds)];
+    const chunkSize = 400;
+    for (let offset = 0; offset < uniqueIds.length; offset += chunkSize) {
+      const chunk = uniqueIds.slice(offset, offset + chunkSize);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const rows = this.db
+        .prepare(
+          `SELECT message_id, conversation_id, seq, role, content, token_count, created_at, large_content
+         FROM messages WHERE message_id IN (${placeholders})`,
+        )
+        .all(...chunk) as unknown as MessageRow[];
+      for (const row of rows) {
+        result.set(row.message_id, toMessageRecord(row));
+      }
+    }
+    return result;
+  }
+
   /** Return the most recent message whose `large_content` sidecar references the given file id. */
   async getMessageByLargeContent(fileId: string): Promise<MessageRecord | null> {
     const row = this.db
@@ -1443,30 +1466,47 @@ export class ConversationStore {
       return 0;
     }
 
-    let deleted = 0;
-    for (const messageId of messageIds) {
-      // Skip if referenced by a summary (ON DELETE RESTRICT would fail anyway)
-      const refRow = this.db
-        .prepare(`SELECT 1 AS found FROM summary_messages WHERE message_id = ? LIMIT 1`)
-        .get(messageId) as unknown as { found: number } | undefined;
-      if (refRow) {
-        continue;
+    const uniqueIds = [...new Set(messageIds)];
+    const protectedIds = new Set<MessageId>();
+    const chunkSize = 400;
+    for (let offset = 0; offset < uniqueIds.length; offset += chunkSize) {
+      const chunk = uniqueIds.slice(offset, offset + chunkSize);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const rows = this.db
+        .prepare(
+          `SELECT message_id FROM summary_messages WHERE message_id IN (${placeholders})`,
+        )
+        .all(...chunk) as unknown as Array<{ message_id: MessageId }>;
+      for (const row of rows) {
+        protectedIds.add(row.message_id);
       }
-
-      // Remove from context_items first (RESTRICT constraint)
-      this.db
-        .prepare(`DELETE FROM context_items WHERE item_type = 'message' AND message_id = ?`)
-        .run(messageId);
-
-      this.deleteMessageFromFullText(messageId);
-
-      // Delete the message (message_parts cascade via ON DELETE CASCADE)
-      this.db.prepare(`DELETE FROM messages WHERE message_id = ?`).run(messageId);
-
-      deleted += 1;
     }
 
-    return deleted;
+    const deletable = uniqueIds.filter((id) => !protectedIds.has(id));
+    if (deletable.length === 0) {
+      return 0;
+    }
+
+    return this.withTransaction(() => {
+      let deleted = 0;
+      for (let offset = 0; offset < deletable.length; offset += chunkSize) {
+        const chunk = deletable.slice(offset, offset + chunkSize);
+        const placeholders = chunk.map(() => "?").join(", ");
+        this.db
+          .prepare(
+            `DELETE FROM context_items WHERE item_type = 'message' AND message_id IN (${placeholders})`,
+          )
+          .run(...chunk);
+        for (const messageId of chunk) {
+          this.deleteMessageFromFullText(messageId);
+        }
+        const result = this.db
+          .prepare(`DELETE FROM messages WHERE message_id IN (${placeholders})`)
+          .run(...chunk);
+        deleted += Number(result.changes ?? 0);
+      }
+      return deleted;
+    });
   }
 
   // ── Search ────────────────────────────────────────────────────────────────
@@ -1768,11 +1808,11 @@ export class ConversationStore {
       conversationIds,
     });
     if (since) {
-      where.push("julianday(m.created_at) >= julianday(?)");
+      where.push("m.created_at >= ?");
       args.push(since.toISOString());
     }
     if (before) {
-      where.push("julianday(m.created_at) < julianday(?)");
+      where.push("m.created_at < ?");
       args.push(before.toISOString());
     }
     args.push(limit);
@@ -1817,11 +1857,11 @@ export class ConversationStore {
       conversationIds,
     });
     if (since) {
-      where.push("julianday(created_at) >= julianday(?)");
+      where.push("created_at >= ?");
       args.push(since.toISOString());
     }
     if (before) {
-      where.push("julianday(created_at) < julianday(?)");
+      where.push("created_at < ?");
       args.push(before.toISOString());
     }
     args.push(limit);
@@ -1881,24 +1921,27 @@ export class ConversationStore {
       conversationIds,
     });
     if (since) {
-      where.push("julianday(created_at) >= julianday(?)");
+      where.push("created_at >= ?");
       args.push(since.toISOString());
     }
     if (before) {
-      where.push("julianday(created_at) < julianday(?)");
+      where.push("created_at < ?");
       args.push(before.toISOString());
     }
+    const MAX_ROW_SCAN = 10_000;
+    const sqlScanLimit = Math.max(limit * 20, MAX_ROW_SCAN);
+    args.push(sqlScanLimit);
     const whereClause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
     const rows = this.db
       .prepare(
         `SELECT message_id, conversation_id, seq, role, content, token_count, created_at, large_content, transcript_entry_id, openclaw_sender_metadata
          FROM messages
          ${whereClause}
-         ORDER BY created_at DESC`,
+         ORDER BY created_at DESC
+         LIMIT ?`,
       )
       .all(...args) as unknown as MessageRow[];
 
-    const MAX_ROW_SCAN = 10_000;
     const results: MessageSearchResult[] = [];
     let scanned = 0;
     for (const row of rows) {

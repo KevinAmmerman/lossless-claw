@@ -801,9 +801,27 @@ export class BatchDeduplicator {
     conversationId: number,
     incomingBatch: StoredMessage[],
   ): Promise<number> {
+    if (incomingBatch.length === 0) {
+      return 0;
+    }
+    // Deduplicate hasMessage lookups by (role, content) while preserving
+    // per-incoming-row semantics (each incoming counts at most once).
+    const uniqueContents = new Map<string, { role: StoredMessage["role"]; content: string }>();
+    for (const incoming of incomingBatch) {
+      uniqueContents.set(`${incoming.role}\0${incoming.content}`, {
+        role: incoming.role,
+        content: incoming.content,
+      });
+    }
+    const presentContent = new Set<string>();
+    for (const [key, item] of uniqueContents) {
+      if (await this.conversationStore.hasMessage(conversationId, item.role, item.content)) {
+        presentContent.add(key);
+      }
+    }
     let overlaps = 0;
     for (const incoming of incomingBatch) {
-      if (await this.conversationStore.hasMessage(conversationId, incoming.role, incoming.content)) {
+      if (presentContent.has(`${incoming.role}\0${incoming.content}`)) {
         overlaps += 1;
       }
     }

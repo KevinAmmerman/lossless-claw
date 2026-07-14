@@ -273,10 +273,14 @@ export class LcmContextEngine implements ContextEngine {
    * need a config-bound value (e.g. `lcm_describe` validating paths
    * under `largeFilesDir`) can ask without mutating engine state.
    */
-  get configView(): Pick<LcmConfig, "largeFilesDir" | "stubLargeToolPayloads"> {
+  get configView(): Pick<
+    LcmConfig,
+    "largeFilesDir" | "stubLargeToolPayloads" | "publicAgentSessionPrefixes"
+  > {
     return {
       largeFilesDir: this.config.largeFilesDir,
       stubLargeToolPayloads: this.config.stubLargeToolPayloads,
+      publicAgentSessionPrefixes: this.config.publicAgentSessionPrefixes,
     };
   }
 
@@ -660,7 +664,13 @@ export class LcmContextEngine implements ContextEngine {
     const current = new Promise<void>((resolve) => {
       releaseQueue = resolve;
     });
-    const next = previous.catch(() => {}).then(() => current);
+    const logSwallowedPriorError = (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.deps.log.warn(
+        `[lcm] session queue: prior operation failed queueKey=${queueKey} error=${msg}`,
+      );
+    };
+    const next = previous.catch(logSwallowedPriorError).then(() => current);
 
     if (entry) {
       entry.promise = next;
@@ -670,8 +680,8 @@ export class LcmContextEngine implements ContextEngine {
     }
 
     const waitStartedAt = Date.now();
-    await previous.catch(() => {});
-    const waitMs = Date.now() - waitStartedAt;
+    await previous.catch(logSwallowedPriorError);
+    const waitMs = Date.now() - waitStartedAt
     if (options?.operationName) {
       const detail = options.context ? ` ${options.context}` : "";
       this.deps.log.debug(

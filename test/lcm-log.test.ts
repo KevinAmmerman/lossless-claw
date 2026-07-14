@@ -24,6 +24,11 @@ function baseConfig(file: string, independentLogFileEnabled = true): LcmConfig {
     databasePath: path.join(tempDir, "lcm.db"),
     largeFilesDir: path.join(tempDir, "lcm-files"),
     ignoreSessionPatterns: [],
+    publicAgentSessionPrefixes: [
+      "agent:hori-wa-public:",
+      "agent:hori-wa-public-group:",
+      "agent:hori-wa-public-group-kletter:",
+    ],
     statelessSessionPatterns: [],
     skipStatelessSessions: true,
     contextThreshold: 0.75,

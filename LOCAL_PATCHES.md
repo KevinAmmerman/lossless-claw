@@ -9,6 +9,19 @@ Reapply after rebasing onto a new upstream release.
 **Base**: upstream `v0.14.0` (`e7f4cbd`). Cherry-picks #967 and #968 are
 included in this release and no longer live on the branch.
 
+## Active post-v0.14.0 cherry-picks (workspace-patches)
+
+| PR | Commit(s) | Notes |
+|----|-----------|--------|
+| #939 | `a6e34a5` | whitespace-divergent same-turn dedup |
+| #935 | `b59f101` | never-ingested recovery decorated-row dedup |
+| #981 | `894a4ba` + `db53448` | doctor apply by conversation id |
+
+**Skipped**: #1000 — on v0.14.0 its ENOENT `transcriptCovered` change regresses
+`engine-compaction` oversized no-overlap + auto-compaction-summary dedup
+(test expects no re-ingest; #1000 path re-ingests). Re-evaluate when upstream
+revises the PR.
+
 1. **Public-agent LCM scope restriction** — `src/tools/lcm-conversation-scope.ts`
    - Forces `agent:hori-wa-public:*`, `agent:hori-wa-public-group:*`, and
      `agent:hori-wa-public-group-kletter:*` sessions to current-conversation-only.

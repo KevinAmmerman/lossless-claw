@@ -9,6 +9,11 @@ const BASE_CONFIG: LcmConfig = {
   databasePath: ":memory:",
   largeFilesDir: "/tmp/lcm-files",
   ignoreSessionPatterns: [],
+  publicAgentSessionPrefixes: [
+    "agent:hori-wa-public:",
+    "agent:hori-wa-public-group:",
+    "agent:hori-wa-public-group-kletter:",
+  ],
   statelessSessionPatterns: [],
   skipStatelessSessions: true,
   contextThreshold: 0.75,

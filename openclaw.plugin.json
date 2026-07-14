@@ -40,7 +40,7 @@
     },
     "contextThreshold": {
       "label": "Context Threshold",
-      "help": "Fraction of context window that triggers compaction (0.0–1.0)"
+      "help": "Fraction of context window that triggers compaction (0.0\u20131.0)"
     },
     "contextThresholdOverrides": {
       "label": "Context Threshold Overrides",
@@ -68,7 +68,7 @@
     },
     "stubLargeToolPayloads": {
       "label": "Stub Large Tool Payloads",
-      "help": "When enabled, evictable tool-result rows whose payload was externalized via lcm-blob-migrate are replaced with a [LCM Tool Output: file_xxx | …] reference at assemble time. Fresh tail is never stubbed. The agent recovers the original output via lcm_describe(id=file_xxx, expandFile=true). Default off; requires running scripts/lcm-blob-migrate.mjs first to populate messages.large_content."
+      "help": "When enabled, evictable tool-result rows whose payload was externalized via lcm-blob-migrate are replaced with a [LCM Tool Output: file_xxx | \u2026] reference at assemble time. Fresh tail is never stubbed. The agent recovers the original output via lcm_describe(id=file_xxx, expandFile=true). Default off; requires running scripts/lcm-blob-migrate.mjs first to populate messages.large_content."
     },
     "leafChunkTokens": {
       "label": "Leaf Chunk Tokens",
@@ -200,7 +200,7 @@
     },
     "maxAssemblyTokenBudget": {
       "label": "Max Assembly Token Budget",
-      "help": "Hard ceiling for assembly token budget — caps runtime-provided and fallback budgets. Set for smaller context-window models (e.g., 30000 for 32k models)"
+      "help": "Hard ceiling for assembly token budget \u2014 caps runtime-provided and fallback budgets. Set for smaller context-window models (e.g., 30000 for 32k models)"
     },
     "summaryMaxOverageFactor": {
       "label": "Summary Max Overage Factor",
@@ -325,6 +325,10 @@
     "stripInjectedContextTags": {
       "label": "Strip Injected Context Tags",
       "help": "XML tag names whose blocks are stripped from messages before summarization. Covers memory/context plugin prepended blocks (active-memory, memory-lancedb, hindsight-openclaw). Set to [] to disable."
+    },
+    "publicAgentSessionPrefixes": {
+      "label": "Public agent session prefixes",
+      "help": "Session keys starting with these prefixes cannot use allConversations LCM recall."
     }
   },
   "configSchema": {
@@ -692,10 +696,17 @@
         "items": {
           "type": "object",
           "properties": {
-            "provider": { "type": "string" },
-            "model": { "type": "string" }
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            }
           },
-          "required": ["provider", "model"],
+          "required": [
+            "provider",
+            "model"
+          ],
           "additionalProperties": false
         }
       },
@@ -705,6 +716,13 @@
         "items": {
           "type": "string"
         }
+      },
+      "publicAgentSessionPrefixes": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Session-key prefixes forced to current-conversation-only LCM tool scope (privacy for public agents). Defaults protect hori-wa public WhatsApp agents. Empty array disables."
       }
     }
   }

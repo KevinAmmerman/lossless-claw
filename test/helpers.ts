@@ -51,6 +51,11 @@ export function createTestConfig(
     databasePath,
     largeFilesDir: tempDir,
     ignoreSessionPatterns: [],
+    publicAgentSessionPrefixes: [
+      "agent:hori-wa-public:",
+      "agent:hori-wa-public-group:",
+      "agent:hori-wa-public-group-kletter:",
+    ],
     statelessSessionPatterns: [],
     skipStatelessSessions: true,
     contextThreshold: 0.75,
