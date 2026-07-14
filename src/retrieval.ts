@@ -481,9 +481,10 @@ export class RetrievalEngine {
     } else if (summary.kind === "leaf" && includeMessages) {
       // Leaf summary — fetch source messages
       const messageIds = await this.summaryStore.getSummaryMessages(summaryId);
-      const store = this.conversationStore as {
-        getMessagesByIds?: (ids: typeof messageIds) => Promise<Map<number, Awaited<ReturnType<typeof this.conversationStore.getMessageById>>>>;
-        getMessageById: typeof this.conversationStore.getMessageById;
+      const store = this.conversationStore as ConversationStore & {
+        getMessagesByIds?: (
+          ids: number[],
+        ) => Promise<Map<number, NonNullable<Awaited<ReturnType<ConversationStore["getMessageById"]>>>>>;
       };
       const messagesById =
         typeof store.getMessagesByIds === "function"
@@ -497,7 +498,7 @@ export class RetrievalEngine {
 
         const msg = messagesById
           ? messagesById.get(msgId) ?? null
-          : await store.getMessageById(msgId);
+          : await this.conversationStore.getMessageById(msgId);
         if (!msg) {
           continue;
         }

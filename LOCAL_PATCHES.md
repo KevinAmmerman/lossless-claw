@@ -17,10 +17,20 @@ included in this release and no longer live on the branch.
 | #935 | `b59f101` | never-ingested recovery decorated-row dedup |
 | #981 | `894a4ba` + `db53448` | doctor apply by conversation id |
 
-**Skipped**: #1000 — on v0.14.0 its ENOENT `transcriptCovered` change regresses
-`engine-compaction` oversized no-overlap + auto-compaction-summary dedup
-(test expects no re-ingest; #1000 path re-ingests). Re-evaluate when upstream
-revises the PR.
+**Skipped**:
+- **#1000** — on v0.14.0 its ENOENT `transcriptCovered` change regresses
+  `engine-compaction` oversized no-overlap + auto-compaction-summary dedup.
+- **#1002** — emergency-drain `force=true` breaks
+  `maintain() bounds provider-fallback recursive sweeps` (14 > maxSweepIterations 10).
+  Wait for upstream revision / v0.14.1.
+
+## Ops notes (workspace)
+
+- `lossless-claw.npm-backup` moved out of `~/.openclaw/extensions/` to
+  `~/backups/plugin-archives/` so it is not discovered as a second plugin.
+- WhatsApp still loads from both `extensions/whatsapp` (2026.6.11, preferred)
+  and npm package path (older) — host warning is benign override, not fixed
+  here (needs OpenClaw install-path cleanup).
 
 1. **Public-agent LCM scope restriction** — `src/tools/lcm-conversation-scope.ts`
    - Forces `agent:hori-wa-public:*`, `agent:hori-wa-public-group:*`, and
