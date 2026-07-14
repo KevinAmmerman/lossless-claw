@@ -112,6 +112,25 @@ export async function resolveLcmConversationScope(input: {
   const isDelegatedSession =
     Boolean(normalizedSessionKey) && Boolean(input.deps?.isSubagentSessionKey(normalizedSessionKey!));
   const isolateCurrentSessionFamily = isIsolatedCronSessionKey(normalizedSessionKey);
+
+  // LOCAL_PATCH: public-agent LCM scope restriction
+  // Prevents cross-conversation LCM context leakage for WhatsApp public-group agents.
+  // For these sessions, allConversations=true and explicit conversationId are ignored.
+  const PUBLIC_AGENT_PREFIXES = [
+    "agent:hori-wa-public:",
+    "agent:hori-wa-public-group:",
+    "agent:hori-wa-public-group-kletter:",
+  ];
+  if (
+    normalizedSessionKey &&
+    PUBLIC_AGENT_PREFIXES.some((p) => normalizedSessionKey.startsWith(p))
+  ) {
+    return {
+      allConversations: false,
+      delegated: false,
+    };
+  }
+
   let allowedConversationIds: number[] = [];
 
   const explicitConversationId =

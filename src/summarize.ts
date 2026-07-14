@@ -1840,6 +1840,8 @@ export async function createLcmSummarizeFromLegacyParams(params: {
         );
         try {
           const retryReasoning = shouldRequestSummaryThinking ? "low" : undefined;
+          // LOCAL_PATCH plan035b: 300ms backoff before conservative retry
+          await new Promise((r) => setTimeout(r, 300));
           const retryResult = await attemptSummarizerCall("retry", retryReasoning, retryMaxTokens);
           const retryNormalized = normalizeCompletionSummary(retryResult.content);
           const retryEnvelopeNormalized = retryNormalized.summary
