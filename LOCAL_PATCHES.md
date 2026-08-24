@@ -6,23 +6,25 @@ These patches are committed on the `workspace-patches` branch in
 `~/lossless-claw-src/`. They survive `npm run build` (rebuilt from source).
 Reapply after rebasing onto a new upstream release.
 
-**Base**: upstream `v0.14.0` (`e7f4cbd`). Cherry-picks #967 and #968 are
-included in this release and no longer live on the branch.
+**Base**: upstream `v0.15.3` (`e965ec5`). Cherry-picks #939, #935, #981 are
+included upstream ≤ v0.15.0 and no longer live on the branch.
 
-## Active post-v0.14.0 cherry-picks (workspace-patches)
+## Active post-v0.15.3 cherry-picks (workspace-patches)
 
-| PR | Commit(s) | Notes |
-|----|-----------|--------|
-| #939 | `a6e34a5` | whitespace-divergent same-turn dedup |
-| #935 | `b59f101` | never-ingested recovery decorated-row dedup |
-| #981 | `894a4ba` + `db53448` | doctor apply by conversation id |
+| Commit(s) | Content |
+|-----------|---------|
+| `f7cb743` | LOCAL_PATCH: public-agent scope restriction + 300ms retry backoff 035b |
+| `67b487d` | search bounds (julianday→ISO + SQL LIMIT), batched deleteMessages, configurable publicAgentSessionPrefixes, queue error logs |
+| `b42c783` | type-safe getMessagesByIds fallback for mock stores |
+
+**Dropped (included upstream ≤ v0.15.0):**
+- **#939** — whitespace-divergent same-turn dedup (`763ad06` upstream)
+- **#935** — never-ingested recovery decorated-row dedup (`2b84753` upstream)
+- **#981** — doctor apply by conversation id (`189efba` upstream)
 
 **Skipped**:
-- **#1000** — on v0.14.0 its ENOENT `transcriptCovered` change regresses
-  `engine-compaction` oversized no-overlap + auto-compaction-summary dedup.
-- **#1002** — emergency-drain `force=true` breaks
-  `maintain() bounds provider-fallback recursive sweeps` (14 > maxSweepIterations 10).
-  Wait for upstream revision / v0.14.1.
+- **#1000/#1002** — previously-regressive PRs landed in revised, safe form
+  upstream (v0.15.x, `d3acd24`, `8ead658`); no longer skipped.
 
 ## Ops notes (workspace)
 
@@ -45,6 +47,20 @@ included in this release and no longer live on the branch.
      retry `attemptSummarizerCall("retry", ...)` call.
    - Prevents rapid-fire API calls on transient errors.
    - Marker: `// LOCAL_PATCH plan035b: 300ms backoff before conservative retry`
+
+3. **Search bounds + batched store ops + configurable public-agent scope + queue error logs** — `src/store/conversation-store.ts`, `src/db/config.ts`, `src/engine.ts`, `src/batch-dedup.ts`, `src/retrieval.ts`
+   - Replace `julianday(created_at)` filters with direct ISO comparisons; bound
+     regex search SQL with a `LIMIT` (`MAX_ROW_SCAN`).
+   - Batch `deleteMessages` in a transaction; add `getMessagesByIds` for expand.
+   - Make the public-agent prefix list configurable via `publicAgentSessionPrefixes`
+     (secure defaults in `config.ts`).
+   - Log previously-swallowed session-queue predecessor failures.
+   - No upstream equivalent as of origin/main 2026-08-24.
+
+4. **Type-safe `getMessagesByIds` fallback for mock stores** — `src/retrieval.ts`
+   - Provide a type-safe `getMessagesByIds` fallback so mock stores compile
+     against the new batched lookup.
+   - No upstream equivalent.
 
 ## No longer needed (fixed in upstream source or not applicable)
 
