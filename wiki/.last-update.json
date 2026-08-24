@@ -1,0 +1,6 @@
+{
+  "commit": "b095913",
+  "timestamp": "2026-08-24T16:15:19Z",
+  "filesChanged": ["quickstart.md", "source-map.md", "plans.md", "operations/environment.md", "architecture/overview.md"],
+  "note": "Wiki refreshed after Plans 400-404: base v0.15.3+8 commits, sender-metadata/stable-event-key/plugin-lifecycle docs added, model claims corrected to deepseek-v4-flash, cherry-pick #967/#968 references removed."
+}

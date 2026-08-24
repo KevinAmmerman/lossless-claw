@@ -16,6 +16,14 @@ included upstream ≤ v0.15.0 and no longer live on the branch.
 | `f7cb743` | LOCAL_PATCH: public-agent scope restriction + 300ms retry backoff 035b |
 | `67b487d` | search bounds (julianday→ISO + SQL LIMIT), batched deleteMessages, configurable publicAgentSessionPrefixes, queue error logs |
 | `b42c783` | type-safe getMessagesByIds fallback for mock stores |
+| `26ca162` | LOCAL_PATCH docs: set base v0.15.3, carried commits, dropped #939/#935/#981; lockfile libc musl |
+| `e353719`, `dba684a` | #1051 picks (still OPEN upstream): session-rotation — skip opaque sessionFile locators instead of warn-spamming stat failures; preserve ambiguous relative session paths |
+| `6c54dda`, `b095913` | #1064 picks (still OPEN upstream): lcm_grep — report a missing pattern instead of throwing; changeset |
+
+**Carried picks guard note**: #1051 and #1064 remain OPEN upstream. The
+e353719/dba684a and 6c54dda/b095913 picks above are preventive — the warn-spam
+baseline was already 0 (Plan 403). Drop these picks at the next release upgrade
+if merged upstream by then.
 
 **Dropped (included upstream ≤ v0.15.0):**
 - **#939** — whitespace-divergent same-turn dedup (`763ad06` upstream)
@@ -33,6 +41,10 @@ included upstream ≤ v0.15.0 and no longer live on the branch.
 - WhatsApp still loads from both `extensions/whatsapp` (2026.6.11, preferred)
   and npm package path (older) — host warning is benign override, not fixed
   here (needs OpenClaw install-path cleanup).
+- Backups of `lcm.db` live in `~/backups/plugin-archives/` with date suffixes
+  (e.g. `lcm.db.rotate-latest.bak-20260731`); oldest may be deleted manually
+  when disk pressure demands (manual deletion is an explicit operator action,
+  never automatic).
 
 1. **Public-agent LCM scope restriction** — `src/tools/lcm-conversation-scope.ts`
    - Forces `agent:hori-wa-public:*`, `agent:hori-wa-public-group:*`, and
